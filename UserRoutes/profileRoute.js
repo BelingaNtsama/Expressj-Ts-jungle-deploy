@@ -1,103 +1,183 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const supabase = require('../Config/supabase');
-const authenticateToken = require('../Middlewares/authentificateToken');
-
-// Configuration de Multer pour gérer les fichiers uploadés
+const supabase = require('../config/supabase');
+const authenticate = require('../Middlewares/authentificateToken');
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.put('/users/:id', authenticateToken, upload.single('image'), async (req, res) => {
-  const { id: userId } = req.params; // Récupérer l'ID de l'utilisateur depuis les paramètres
-  const { name, email, phone, adresse } = JSON.parse(req.body.user); // Extraire les données utilisateur
+// GET user data with related info
+router.get('/profile/:id', authenticate, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!userId) {
+      return res.status(403).json({ error: "Non autorisé" });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select(`
+        *,
+        orders:orders(
+          id,
+          created_at,
+          status,
+          amount,
+          items:order_items(
+            quantity,
+            plantes:plantes(
+              name,
+              image
+            )
+          )
+        ),
+        addresses:addresses(
+          id,
+          street,
+          city,
+          postal_code,
+          country,
+          is_default
+        )
+      `)
+      .eq('id', userId)
+      .single();
+
+    if (userError) throw userError;
+
+    // Formatage des données
+    const responseData = {
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      phone: user.phone,
+      newsletter: user.newsletter,
+      offers: user.offers,
+      twoFA: user.twoFA,
+      picture: user.picture,
+      member_since: user.member_since,
+      total_orders: user.orders?.length || 0,
+    };
+
+    res.json(responseData);
+
+  } catch (error) {
+    console.error("Erreur lors de la récupération des données:", error);
+    res.status(500).json({ 
+      error: "Erreur serveur",
+      details: error.message 
+    });
+  }
+});
+
+// PUT update user data with transaction
+router.put('/profile/:id', authenticate, async (req, res) => {
+  const userId = req.params.id;
+  const { first_name, last_name, email, phone, newsletter, offers } = req.body;
+
+  if (!userId) {
+    return res.status(403).json({ error: "Non autorisé" });
+  }
 
   try {
-    // Étape 1 : Gérer l'upload ou la mise à jour de l'image
-    let pictureUrl = null;
-
-    if (req.file) {
-      const filePath = `${userId}.${req.file.originalname.split('.').pop()}`; // Construire le chemin du fichier
-
-      // Vérifier si une image existe déjà dans le bucket
-      const { data: existingFile, error: checkError } = await supabase.storage
-        .from('profiles')
-        .list('', { search: filePath }); // Rechercher le fichier par son nom
-
-      if (checkError) {
-        return res.status(400).json({ error: 'Erreur lors de la vérification de l\'image existante', details: checkError.message });
-      }
-
-      // Si une image existe, remplacer son contenu
-      if (existingFile && existingFile.length > 0) {
-        const { error: updateError } = await supabase.storage
-          .from('profiles')
-          .update(filePath, req.file.buffer, {
-            contentType: req.file.mimetype,
-          });
-
-        if (updateError) {
-          return res.status(400).json({ error: 'Erreur lors de la mise à jour de l\'image existante', details: updateError.message });
-        }
-      } else {
-        // Sinon, télécharger une nouvelle image
-        const { error: uploadError } = await supabase.storage
-          .from('profiles')
-          .upload(filePath, req.file.buffer, {
-            contentType: req.file.mimetype,
-          });
-
-        if (uploadError) {
-          return res.status(400).json({ error: 'Erreur lors de l\'upload de l\'image', details: uploadError.message });
-        }
-      }
-
-      // Obtenir l'URL publique de l'image
-      const { data: publicUrlData, error: urlError } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(filePath);
-
-      if (urlError) {
-        return res.status(400).json({ error: 'Erreur lors de la récupération de l\'URL de l\'image', details: urlError.message });
-      }
-
-      pictureUrl = publicUrlData.publicUrl;
-    }
-
-    // Étape 2 : Mettre à jour les informations utilisateur dans la table `users`
-    const updateData = {
-      name,
-      email,
-      phone,
-      adresse,
-      picture: pictureUrl || undefined, // Mettre à jour l'URL de l'image si disponible
-    };
-
-    const { data: updatedUser, error: updateError } = await supabase
+    const { data, error } = await supabase
       .from('users')
-      .update(updateData)
+      .update({
+        first_name,
+        last_name,
+        email,
+        phone,
+        newsletter,
+        offers,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', userId)
-      .select('*'); // Récupérer les données mises à jour
+      .select(`
+        *,
+        addresses:addresses(
+          id,
+          is_default
+        )
+      `)
+      .single();
 
-    if (updateError) {
-      return res.status(400).json({ error: 'Erreur lors de la mise à jour des informations utilisateur', details: updateError.message });
-    }
+    if (error) throw error;
 
-    // Étape 3 : Construire l'objet utilisateur mis à jour
-    const user = {
-      id: updatedUser[0].id,
-      name: updatedUser[0].name,
-      email: updatedUser[0].email,
-      phone: updatedUser[0].phone,
-      adresse: updatedUser[0].adresse,
-      picture: updatedUser[0].picture, // Utiliser l'URL de l'image mise à jour ou existante
-      auth: true, // Ajouter le champ `auth` comme demandé
-    };
+    res.json({
+      user: {
+        id: data.id,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email
+      },
+      addresses: data.addresses
+    });
 
-    // Répondre avec succès
-    res.status(200).json({ message: 'Profil mis à jour avec succès', user });
   } catch (error) {
-    console.error('Erreur inattendue :', error.message);
-    res.status(500).json({ error: 'Erreur interne du serveur', details: error.message });
+    console.error("Erreur de mise à jour:", error);
+    res.status(500).json({ 
+      error: "Erreur de mise à jour",
+      details: error.message 
+    });
+  }
+});
+
+// POST upload profile picture with error handling
+router.post('/profile/:id/picture', authenticate, upload.single('picture'), async (req, res) => {
+  const userId = req.params.id;
+  
+  if (userId !== req.user.id || !req.file) {
+    return res.status(!req.file ? 400 : 403).json({ 
+      error: !req.file ? "Aucun fichier fourni" : "Non autorisé" 
+    });
+  }
+
+  try {
+    // Upload vers Supabase Storage
+    const fileExt = req.file.originalname.split('.').pop();
+    const fileName = `profile_${Date.now()}.${fileExt}`;
+    const filePath = `users/${userId}/${fileName}`;
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('user-profile')
+      .upload(filePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true,
+        cacheControl: '3600'
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Récupération de l'URL signée
+    const { data: signedUrl } = await supabase.storage
+      .from('user-profile')
+      .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 an
+
+    // Mise à jour du profil utilisateur
+    const { data: userData, error: updateError } = await supabase
+      .from('users')
+      .update({ 
+        picture: signedUrl.signedUrl,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select('id, first_name, last_name, picture')
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      user: userData,
+      image_url: signedUrl.signedUrl
+    });
+
+  } catch (error) {
+    console.error("Erreur d'upload:", error);
+    res.status(500).json({ 
+      error: "Erreur lors de l'upload",
+      details: error.message 
+    });
   }
 });
 

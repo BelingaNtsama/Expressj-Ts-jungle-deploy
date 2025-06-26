@@ -10,7 +10,7 @@ router.get('/Orders/:id', authenticateToken, async (req, res) => {
  
         // Étape 1 : Récupérer toutes les commandes de l'utilisateur
         const { data: orders, error: ordersError } = await supabase
-            .from('Orders')
+            .from('orders')
             .select('*')
             .eq('user_id', userId);
 
@@ -28,10 +28,10 @@ router.get('/Orders/:id', authenticateToken, async (req, res) => {
             orders.map(async (order) => {
                 // Récupérer les items liés à cette commande avec les détails des plantes
                 const { data: orderItems, error: itemsError } = await supabase
-                    .from('OrderItems')
+                    .from('order_items')
                     .select(` 
                         *,
-                        plantes(nom, image)
+                        plantes(name, image)
                     `)
                     .eq('order_id', order.id);
 
@@ -45,9 +45,9 @@ router.get('/Orders/:id', authenticateToken, async (req, res) => {
                     ...order, 
                     items: orderItems.map(item => ({
                         id: item.id,
-                        quantite: item.quantite,
+                        quantity: item.quantity,
                          price_at_time_of_order: item.price_at_time_of_order,
-                            nom: item.plantes.nom,
+                            name: item.plantes.name,
                             image: item.plantes.image
                     
                     }))
