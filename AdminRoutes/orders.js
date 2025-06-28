@@ -3,67 +3,69 @@ const router = express.Router();
 const supabase = require('../Config/supabase');
 const authenticateToken = require('../Middlewares/authentificateToken');
 
-router.get('/admin/Orders', authenticateToken, async (req, res) => {
+router.get('/admin/orders', authenticateToken, async (req, res) => {
   try {
-    // Étape 1 : Récupérer toutes les commandes (Orders) avec les informations utilisateur (Users)
-    const { data: orders, error: ordersError } = await supabase
-      .from('Orders')
+    // Fetch orders with related data
+    const { data: orders, error } = await supabase
+      .from('orders')
       .select(`
         id,
         amount,
+        status,
         created_at,
-        user_id (
-          name
-        )
-      `);
-
-    if (ordersError) {
-      throw new Error(ordersError.message);
-    }
-
-    // Étape 2 : Pour chaque commande, récupérer les détails des articles (OrderItems) et les informations sur les plantes (Plantes)
-    const enrichedOrders = await Promise.all(
-      orders.map(async (order) => {
-        // Récupérer les items associés à cette commande
-        const { data: orderItems, error: itemsError } = await supabase
-          .from('OrderItems')
-          .select(`
+        priority,
+        users:user_id (
+          id,
+          first_name,
+          last_name,
+          email,
+          phone
+        ),
+        items:order_items (
+          quantity,
+          price_at_time_of_order,
+          plantes:plant_id (
             id,
-            quantite,
-            price_at_time_of_order,
-            plante_id (
-              nom,
-              image
-            )
-          `)
-          .eq('order_id', order.id);
+            name,
+            price,
+            image
+          )
+        ),
+        payment:payment_methods (
+          type,
+          cardNumber
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-        if (itemsError) {
-          throw new Error(itemsError.message);
-        }
+    if (error) throw error;
 
-        // Retourner la commande enrichie avec les items et les informations utilisateur
-        return {
-          id: order.id,
-          name_users: order.user_id.name, // Nom de l'utilisateur depuis la table Users
-          amount: order.amount,
-          date: order.created_at,
-          items: orderItems.map((item) => ({
-            id: item.id,
-            name_plante: item.plante_id.nom, // Nom de la plante depuis la table Plantes
-            image_plante: item.plante_id.image, // Image de la plante depuis la table Plantes
-            quantity: item.quantite,
-            price_at_time_of_order: item.price_at_time_of_order,
-          })),
-        };
-      })
-    );
+    // Format data for frontend
+    const formattedOrders = orders.map(order => {
+      const products = order.items.map(item => item.plant.name);
+      const mainProduct = products[0] || 'Unknown Product';
+      
+      return {
+        id: `#ORD-${order.id.toString().padStart(6, '0')}`,
+        customer: `${order.user.first_name} ${order.user.last_name}`,
+        customerEmail: order.user.email,
+        product: mainProduct,
+        products,
+        total: order.amount,
+        status: order.status,
+        priority: order.priority || 'Normal',
+        date: order.created_at,
+        shippingAddress: `${order.user.phone || 'No address'}`,
+        paymentMethod: order.payment?.type || 'Unknown',
+        trackingNumber: order.tracking_number || null,
+        rawData: order // Keep raw data for details view
+      };
+    });
 
-    // Répondre avec les commandes enrichies
-    res.status(200).json(enrichedOrders);
+    res.status(200).json(formattedOrders);
   } catch (error) {
-    console.error('Erreur lors de la récupération des commandes :', error.message);
-    res.status(500).json({ error: 'Une erreur est survenue lors de la récupération des commandes.' });
+    console.error('Error fetching orders:', error.message);
+    res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
 

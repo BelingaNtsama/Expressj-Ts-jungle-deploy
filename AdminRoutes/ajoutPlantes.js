@@ -58,7 +58,7 @@ router.post('/admin/ajoutPlantes', authenticateToken, upload.single('image'), as
     if (file) {
       try {
         const fileExtension = mime.extension(file.mimetype) || 'bin';
-        const sanitizedNom = plante.nom.trim().replace(/\s+/g, '_'); // Remplace les espaces par des _
+        const sanitizedNom = plante.name.trim().replace(/\s+/g, '_'); // Remplace les espaces par des _
         const fileName = `${sanitizedNom}.${fileExtension}`;
         imageUrl = await supabaseService.uploadImage(fileName, file.buffer, file.mimetype);
       } catch (error) {
@@ -68,12 +68,12 @@ router.post('/admin/ajoutPlantes', authenticateToken, upload.single('image'), as
 
     // Préparer les données de la plante
     const planteData = {
-      nom: plante.nom,
+      name: plante.nom,
       description: plante.description,
-      prix: parseInt(plante.prix, 10),
+      price: parseInt(plante.prix, 10),
       stock: parseInt(plante.stock, 10),
       image: imageUrl,
-      categorie: plante.categorie,
+      category: plante.categorie,
     };
 
     // Ajouter ou mettre à jour la plante dans la base de données
