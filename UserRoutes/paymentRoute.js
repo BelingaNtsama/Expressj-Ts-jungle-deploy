@@ -282,8 +282,6 @@ router.post('/processPayment/:userId', authenticate, async (req, res) => {
     plantFrequency.sort((a, b) => b.quantity - a.quantity);
 
     const topPlants = plantFrequency.slice(0, 2)
-    console.log("Top Plants:", topPlants);
-    ;
 
     // Étape 4 : Ajouter les deux plantes les plus achetées aux favoris
     for (const plant of topPlants) {

@@ -1,19 +1,12 @@
+// websocket.js
 const { Server } = require('socket.io');
-const supabase = require('../Config/supabase')
+const supabase = require('../Config/supabase');
 
-const Orders = supabase.channel('custom-all-channel')
-  .on(
-    'postgres_changes',
-    { event: '*', schema: 'public', table: 'Orders' },
-    (payload) => {
-      console.log('Change received!', payload)
-    }
-  )
-  .subscribe()
+const FIXED_RECEIVER_ID = '2c48bc11-fbfa-418f-8e6f-dbe03fba1e95';
 
 let io;
+const connectedUsers = new Map();
 const pendingNotifications = new Map();
-const FIXED_RECEIVER_ID = '5368eefb-52c5-4d51-ba2e-7f931a10cb80';
 
 function initializeWebSocket(server) {
   io = new Server(server, {
@@ -24,55 +17,58 @@ function initializeWebSocket(server) {
   });
 
   io.on('connection', (socket) => {
-    console.log(`Client connected: ${FIXED_RECEIVER_ID}`);
+    console.log('Client connecté ✅');
     socket.userId = FIXED_RECEIVER_ID;
-    
+    connectedUsers.set(socket.userId, socket);
+
     // Envoyer les notifications en attente
-    if (pendingNotifications.has(FIXED_RECEIVER_ID)) {
-      const notifications = pendingNotifications.get(FIXED_RECEIVER_ID);
+    if (pendingNotifications.has(socket.userId)) {
+      const notifications = pendingNotifications.get(socket.userId);
       if (notifications.length > 0) {
         socket.emit('order_created', notifications);
-        pendingNotifications.delete(FIXED_RECEIVER_ID);
+        pendingNotifications.delete(socket.userId);
       }
     }
 
     socket.on('disconnect', () => {
-      console.log(`Client disconnected: ${FIXED_RECEIVER_ID}`);
+      connectedUsers.delete(socket.userId);
+      console.log(`Client déconnecté ❌`);
     });
   });
+
+  // Écoute Supabase
+  
+const channels = supabase.channel('custom-insert-channel')
+  .on(
+    'postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'orders' },
+      (payload) => {
+        const order = payload.new;
+        const notification = {
+          id: order.id,
+          title: 'Nouvelle commande',
+          message: `Commande de ${order.amount}€ à ${new Date().toLocaleTimeString()}`,
+          created_at: order.created_at,
+          type: 'order',
+          status: 'unread'
+        };
+
+        const userId = FIXED_RECEIVER_ID;
+        const socket = connectedUsers.get(userId);
+
+        if (socket) {
+          socket.emit('order_created', [notification]);
+        } else {
+          if (!pendingNotifications.has(userId)) {
+            pendingNotifications.set(userId, []);
+          }
+          pendingNotifications.get(userId).push(notification);
+        }
+      }
+    )
+    .subscribe();
 
   return io;
 }
 
-function notifyOrderCreated(userId, orderData) {
-  const notification = {
-    type: 'order',
-    title: 'Nouvelle commande',
-    message: `Une commande a ete effectuee le ${new Date().toLocaleString()} avec le montant de ${orderData[0].amount}$`,
-    time: orderData[0].created_at,
-    id: orderData[0].id,
-    status: 'unread'
-  };
-
-  if (!io) {
-    console.warn('WebSocket non initialisé, notification non envoyée');
-    return;
-  }
-
-  const socket = Array.from(io.sockets.sockets.values())[0];
-  if (socket) {
-    socket.emit('order_created', [notification]);
-    console.log(`Notification envoyée au récepteur fixe`);
-  } else {
-    if (!pendingNotifications.has(FIXED_RECEIVER_ID)) {
-      pendingNotifications.set(FIXED_RECEIVER_ID, []);
-    }
-    pendingNotifications.get(FIXED_RECEIVER_ID).push(notification);
-    console.log(`Notification mise en attente`);
-  }
-}
-
-module.exports = {
-  initializeWebSocket,
-  notifyOrderCreated
-};
+module.exports = { initializeWebSocket };

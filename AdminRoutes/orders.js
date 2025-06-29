@@ -9,11 +9,10 @@ router.get('/admin/orders', authenticateToken, async (req, res) => {
     const { data: orders, error } = await supabase
       .from('orders')
       .select(`
-        id,
+        id, 
         amount,
         status,
         created_at,
-        priority,
         users:user_id (
           id,
           first_name,
@@ -42,22 +41,21 @@ router.get('/admin/orders', authenticateToken, async (req, res) => {
 
     // Format data for frontend
     const formattedOrders = orders.map(order => {
-      const products = order.items.map(item => item.plant.name);
+      const products = order.items.map(item => item.plantes.name);
       const mainProduct = products[0] || 'Unknown Product';
       
       return {
         id: `#ORD-${order.id.toString().padStart(6, '0')}`,
-        customer: `${order.user.first_name} ${order.user.last_name}`,
-        customerEmail: order.user.email,
+        customer: `${order.users.first_name} ${order.users.last_name}`,
+        customerEmail: order.users.email,
         product: mainProduct,
         products,
         total: order.amount,
         status: order.status,
         priority: order.priority || 'Normal',
         date: order.created_at,
-        shippingAddress: `${order.user.phone || 'No address'}`,
+        shippingAddress: `${order.users.phone || 'No address'}`,
         paymentMethod: order.payment?.type || 'Unknown',
-        trackingNumber: order.tracking_number || null,
         rawData: order // Keep raw data for details view
       };
     });
