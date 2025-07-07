@@ -1,5 +1,5 @@
 const CORS_OPTIONS = {
-    origin: 'https://ts-jungle.vercel.app/',
+    origin: 'https://ts-jungle.vercel.app',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
