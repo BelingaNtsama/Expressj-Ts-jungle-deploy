@@ -9,7 +9,7 @@ router.get('/auth/google', async (req, res) => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `http://localhost:5173/redirect`, // URL de redirection après l'authentification
+      redirectTo: `https://ts-jungle.vercel.app/redirect`, // URL de redirection après l'authentification
     },
       }); 
       if (error) throw new Error(error.message); 
