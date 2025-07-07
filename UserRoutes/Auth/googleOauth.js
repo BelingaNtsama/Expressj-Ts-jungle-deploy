@@ -12,7 +12,8 @@ router.get('/auth/google', async (req, res) => {
       redirectTo: `https://ts-jungle.vercel.app/redirect`, // URL de redirection après l'authentification
     },
       }); 
-      if (error) throw new Error(error.message); 
+      if (error) throw new Error(error.message);
+      console.log(data.url) 
       res.clearCookie()
      res.json({ url: data.url });
 });
