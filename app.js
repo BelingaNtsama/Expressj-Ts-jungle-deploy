@@ -11,7 +11,10 @@ const chatbotRoutes = require('./Chatbot');
 const app = express(); 
 
 // Middleware
-app.use(cors(CORS_OPTIONS));
+app.use(cors({
+  origin: 'https://ts-jungle.vercel.app', // autorise uniquement ton frontend
+  credentials: true // si tu utilises des cookies ou sessions
+}));
 app.use(express.json());
 app.use(cookieParser()); 
 
