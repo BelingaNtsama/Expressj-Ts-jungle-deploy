@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const supabase = require('../config/supabase');
+const supabase = require('../Config/supabase');
 require('dotenv').config();
 
 const authenticateToken = async (req, res, next) => {

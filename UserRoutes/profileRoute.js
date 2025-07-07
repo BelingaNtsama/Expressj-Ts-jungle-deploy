@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const supabase = require('../config/supabase');
+const supabase = require('../Config/supabase');
 const authenticate = require('../Middlewares/authentificateToken');
 const upload = multer({ storage: multer.memoryStorage() });
 

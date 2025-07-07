@@ -1,7 +1,7 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const supabase = require('../../config/supabase'); // Assurez-vous que cette configuration est correcte
+const supabase = require('../../Config/supabase'); // Assurez-vous que cette configuration est correcte
 const router = express.Router();
 require('dotenv').config();
 
