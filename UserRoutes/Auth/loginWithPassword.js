@@ -52,7 +52,7 @@ router.post('/auth/login', async (req, res) => {
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: true, // Activer Secure uniquement en production
-      sameSite: 'strict',
+      sameSite: 'none',
       maxAge: 24 * 60 * 60 * 60 // 24 heures
     });
 

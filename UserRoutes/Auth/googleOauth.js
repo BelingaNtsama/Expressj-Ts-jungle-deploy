@@ -48,7 +48,7 @@ router.post('/auth/token', async (req, res) => {
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: true, // Activer en production
-      sameSite: 'strict',
+      sameSite: 'none',
       maxAge: 3600000, // Durée de vie du cookie en ms (1 heure ici)
     });
    res.status(200).json({
