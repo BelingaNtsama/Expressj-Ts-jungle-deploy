@@ -47,8 +47,8 @@ router.post('/auth/token', async (req, res) => {
     // Définir un cookie HTTP-only contenant le jeton d'accès
     res.cookie('access_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Activer en production
-      sameSite: 'Lax',
+      secure: true, // Activer en production
+      sameSite: 'strict',
       maxAge: 3600000, // Durée de vie du cookie en ms (1 heure ici)
     });
    res.status(200).json({
