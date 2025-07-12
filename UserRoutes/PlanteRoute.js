@@ -4,7 +4,7 @@ const supabase = require('../Config/supabase');
 const authenticateToken = require('../Middlewares/authentificateToken');
 
 // 🌿 Route pour récupérer les plantes
-router.get('/plantes',authenticateToken, async (req, res) => {
+router.get('/plantes', async (req, res) => {
   try {
     const { data: plantes, error } = await supabase
       .from('plantes')
