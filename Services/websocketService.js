@@ -11,7 +11,7 @@ const pendingNotifications = new Map();
 function initializeWebSocket(server) {
   io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: "https://ts-jungle.vercel.app",
       methods: ["GET", "POST"]
     }
   });
