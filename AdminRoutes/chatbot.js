@@ -5,7 +5,7 @@ const router = express.Router();
  
 // Route pour déclencher l'envoi au webhook
 router.post('/Agent', async (req, res) => {
-  const webhookUrl = 'https://12fe-102-244-200-98.ngrok-free.app/webhook/test';
+  const webhookUrl = 'https://a76307e441d7.ngrok-free.app/webhook-test/test';
 
   try {
     const message = req.body; // Utilisez les données reçues dans la requête
